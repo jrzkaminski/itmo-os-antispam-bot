@@ -1,19 +1,19 @@
 import os
 import re
-import threading
 import logging
+import asyncio
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from telegram import Update
 from telegram.ext import (
-    Updater,
+    ApplicationBuilder,
     MessageHandler,
-    Filters,
-    CallbackContext,
-    Dispatcher,
+    filters,
+    ContextTypes,
 )
+from telegram.constants import ChatMemberStatus
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv() 
 
 # Configure logging
 logging.basicConfig(
@@ -122,8 +122,7 @@ class TelegramSpamBot:
             token (str): The bot's API token.
             model_name (str): The name of the spam detection model.
         """
-        self.updater = Updater(token, use_context=True)
-        self.dispatcher: Dispatcher = self.updater.dispatcher
+        self.application = ApplicationBuilder().token(token).build()
         self.spam_detector = SpamDetector(model_name)
         self.new_members = {}
         self.cleanup_interval = 600  # Time in seconds to track new users
@@ -135,24 +134,23 @@ class TelegramSpamBot:
         Set up the message handlers for the bot.
         """
         new_member_handler = MessageHandler(
-            Filters.status_update.new_chat_members, self.track_new_members
+            filters.StatusUpdate.NEW_CHAT_MEMBERS, self.track_new_members
         )
         first_message_handler = MessageHandler(
-            Filters.text & Filters.chat_type.groups, self.check_first_message
+            filters.TEXT & filters.ChatType.GROUPS, self.check_first_message
         )
 
-        self.dispatcher.add_handler(new_member_handler)
-        self.dispatcher.add_handler(first_message_handler)
+        self.application.add_handler(new_member_handler)
+        self.application.add_handler(first_message_handler)
 
     def start(self):
         """
         Start the bot.
         """
         logger.info("Starting the bot...")
-        self.updater.start_polling()
-        self.updater.idle()
+        self.application.run_polling()
 
-    def track_new_members(self, update: Update, context: CallbackContext):
+    async def track_new_members(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Track new members who join the chat.
         """
@@ -161,17 +159,21 @@ class TelegramSpamBot:
                 user_id = member.id
                 self.new_members[user_id] = True  # Mark user as new
                 logger.info(f"New member joined: {member.full_name} (ID: {user_id})")
-                # Set a timer to remove them after cleanup_interval
-                timer = threading.Timer(
-                    self.cleanup_interval,
-                    self.remove_user_from_new_members,
-                    args=(user_id,)
+                # Schedule removal after cleanup_interval
+                context.application.create_task(
+                    self.remove_user_after_delay(user_id)
                 )
-                timer.start()
         except Exception as e:
             logger.error(f"Error in track_new_members: {e}")
 
-    def remove_user_from_new_members(self, user_id: int):
+    async def remove_user_after_delay(self, user_id: int):
+        """
+        Remove the user from tracking after a delay.
+        """
+        await asyncio.sleep(self.cleanup_interval)
+        await self.remove_user_from_new_members(user_id)
+
+    async def remove_user_from_new_members(self, user_id: int):
         """
         Remove a user from the new_members tracking dictionary.
         """
@@ -181,7 +183,7 @@ class TelegramSpamBot:
         except Exception as e:
             logger.error(f"Error in remove_user_from_new_members: {e}")
 
-    def check_first_message(self, update: Update, context: CallbackContext):
+    async def check_first_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Check the first message sent by new members for spam.
         """
@@ -194,17 +196,17 @@ class TelegramSpamBot:
                 is_spam = self.spam_detector.classify_message(message)
                 if is_spam:
                     # Delete the message and ban the user
-                    context.bot.delete_message(
+                    await context.bot.delete_message(
                         chat_id=chat_id,
                         message_id=update.message.message_id
                     )
-                    context.bot.kick_chat_member(chat_id=chat_id, user_id=user_id)
+                    await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
                     logger.warning(f"Banned user {user_id} for spam.")
                 else:
                     logger.info(f"User {user_id} passed spam check.")
 
                 # Remove the user from tracking after their first message
-                self.remove_user_from_new_members(user_id)
+                await self.remove_user_from_new_members(user_id)
         except Exception as e:
             logger.error(f"Error in check_first_message: {e}")
 
@@ -214,7 +216,7 @@ class TelegramSpamBot:
 if __name__ == '__main__':
     # Retrieve the bot token from the environment variable
     BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
-    MODEL_NAME = 'RUSpam/spamNS_v1'
+    MODEL_NAME = 'NeuroSpaceX/spamNS_v1'
 
     if not BOT_TOKEN:
         logger.critical("Bot token not found. Please set the TELEGRAM_BOT_TOKEN environment variable.")
