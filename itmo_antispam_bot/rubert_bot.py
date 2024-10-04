@@ -125,7 +125,7 @@ class TelegramSpamBot:
         self.application = ApplicationBuilder().token(token).build()
         self.spam_detector = SpamDetector(model_name)
         self.new_members = {}
-        self.cleanup_interval = 600  # Time in seconds to track new users
+        self.cleanup_interval = 604800  # Time in seconds to track new users
 
         self._setup_handlers()
 
