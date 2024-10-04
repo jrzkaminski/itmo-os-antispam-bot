@@ -137,7 +137,7 @@ class TelegramSpamBot:
             filters.StatusUpdate.NEW_CHAT_MEMBERS, self.track_new_members
         )
         first_message_handler = MessageHandler(
-            filters.TEXT & filters.ChatType.GROUPS, self.check_first_message
+            filters.TEXT & filters.ChatType.SUPERGROUPS, self.check_first_message
         )
 
         self.application.add_handler(new_member_handler)
