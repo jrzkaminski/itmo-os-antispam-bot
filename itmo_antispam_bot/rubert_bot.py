@@ -156,7 +156,7 @@ class TelegramSpamBot:
         Set up the message handlers for the bot.
         """
         chat_member_handler = ChatMemberHandler(
-            self.track_new_members, ChatMemberHandler.CHAT_MEMBER
+            self.track_new_members, ChatMemberHandler.ANY_CHAT_MEMBER
         )
         first_message_handler = MessageHandler(
             filters.TEXT & filters.ChatType.SUPERGROUP, self.check_first_message
