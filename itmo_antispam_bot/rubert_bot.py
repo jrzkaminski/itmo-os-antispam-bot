@@ -1,24 +1,26 @@
+import asyncio
+import logging
 import os
 import re
-import logging
-import asyncio
+
 import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from dotenv import load_dotenv
 from telegram import Update
+from telegram.constants import ChatMemberStatus
 from telegram.ext import (
     ApplicationBuilder,
     MessageHandler,
+    ChatMemberHandler,
     filters,
     ContextTypes,
 )
-from telegram.constants import ChatMemberStatus
-from dotenv import load_dotenv
-load_dotenv() 
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
@@ -32,10 +34,12 @@ class SpamDetector:
         """
         Initialize the SpamDetector with the specified model.
         """
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model = AutoModelForSequenceClassification.from_pretrained(
-            model_name, num_labels=1
-        ).to(self.device).eval()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = (
+            AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=1)
+            .to(self.device)
+            .eval()
+        )
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.homoglyphs = self._create_homoglyphs_mapping()
 
@@ -45,23 +49,39 @@ class SpamDetector:
         Create a mapping of Latin letters to their visually similar Cyrillic equivalents.
         """
         return {
-            'A': 'А', 'a': 'а',
-            'B': 'В', 'E': 'Е',
-            'e': 'е', 'K': 'К',
-            'M': 'М', 'H': 'Н',
-            'O': 'О', 'o': 'о',
-            'P': 'Р', 'C': 'С',
-            'c': 'с', 'T': 'Т',
-            'X': 'Х', 'y': 'у',
-            'Y': 'У', 'p': 'р',
-            'b': 'ь', 'I': 'І',
-            'i': 'і', 'S': 'Ѕ',
-            's': 'ѕ', 'd': 'ԁ',
-            'D': 'Ԁ', 'f': 'ғ',
-            'F': 'Ғ', 'g': 'ɡ',
-            'G': 'Ԍ', 'l': 'ⅼ',
-            'L': 'Ꮮ', 'n': 'ո',
-            'N': 'Ν',
+            "A": "А",
+            "a": "а",
+            "B": "В",
+            "E": "Е",
+            "e": "е",
+            "K": "К",
+            "M": "М",
+            "H": "Н",
+            "O": "О",
+            "o": "о",
+            "P": "Р",
+            "C": "С",
+            "c": "с",
+            "T": "Т",
+            "X": "Х",
+            "y": "у",
+            "Y": "У",
+            "p": "р",
+            "b": "ь",
+            "I": "І",
+            "i": "і",
+            "S": "Ѕ",
+            "s": "ѕ",
+            "d": "ԁ",
+            "D": "Ԁ",
+            "f": "ғ",
+            "F": "Ғ",
+            "g": "ɡ",
+            "G": "Ԍ",
+            "l": "ⅼ",
+            "L": "Ꮮ",
+            "n": "ո",
+            "N": "Ν",
         }
 
     def clean_text(self, text: str) -> str:
@@ -69,11 +89,11 @@ class SpamDetector:
         Clean and normalize the input text for spam detection.
         """
         # Remove URLs
-        text = re.sub(r'http\S+', '', text)
+        text = re.sub(r"http\S+", "", text)
         # Remove non-alphanumeric characters (excluding spaces)
-        text = re.sub(r'[^А-Яа-яA-Za-z0-9 ]+', ' ', text)
+        text = re.sub(r"[^А-Яа-яA-Za-z0-9 ]+", " ", text)
         # Replace Latin letters with Cyrillic equivalents
-        text = ''.join([self.homoglyphs.get(char, char) for char in text])
+        text = "".join([self.homoglyphs.get(char, char) for char in text])
         # Convert to lowercase and strip whitespace
         text = text.lower().strip()
         return text
@@ -89,20 +109,22 @@ class SpamDetector:
             message = self.clean_text(message)
             encoding = self.tokenizer(
                 message,
-                padding='max_length',
+                padding="max_length",
                 truncation=True,
                 max_length=128,
-                return_tensors='pt'
+                return_tensors="pt",
             )
-            input_ids = encoding['input_ids'].to(self.device)
-            attention_mask = encoding['attention_mask'].to(self.device)
+            input_ids = encoding["input_ids"].to(self.device)
+            attention_mask = encoding["attention_mask"].to(self.device)
 
             with torch.no_grad():
                 outputs = self.model(input_ids, attention_mask=attention_mask).logits
                 pred = torch.sigmoid(outputs).cpu().numpy()[0][0]
 
             is_spam = pred >= 0.5
-            logger.debug(f"Message classified as {'spam' if is_spam else 'not spam'} with score {pred:.4f}")
+            logger.debug(
+                f"Message classified as {'spam' if is_spam else 'not spam'} with score {pred:.4f}"
+            )
             return is_spam
         except Exception as e:
             logger.error(f"Error in classify_message: {e}")
@@ -133,14 +155,14 @@ class TelegramSpamBot:
         """
         Set up the message handlers for the bot.
         """
-        new_member_handler = MessageHandler(
-            filters.StatusUpdate.NEW_CHAT_MEMBERS, self.track_new_members
+        chat_member_handler = ChatMemberHandler(
+            self.track_new_members, ChatMemberHandler.CHAT_MEMBER
         )
         first_message_handler = MessageHandler(
             filters.TEXT & filters.ChatType.SUPERGROUP, self.check_first_message
         )
 
-        self.application.add_handler(new_member_handler)
+        self.application.add_handler(chat_member_handler)
         self.application.add_handler(first_message_handler)
 
     def start(self):
@@ -150,19 +172,28 @@ class TelegramSpamBot:
         logger.info("Starting the bot...")
         self.application.run_polling()
 
-    async def track_new_members(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def track_new_members(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """
-        Track new members who join the chat.
+        Track new members who join the chat via chat_member updates.
         """
         try:
-            for member in update.message.new_chat_members:
-                user_id = member.id
+            chat_id = update.effective_chat.id
+            user_id = update.chat_member.new_chat_member.user.id
+            old_status = update.chat_member.old_chat_member.status
+            new_status = update.chat_member.new_chat_member.status
+
+            if old_status in [
+                ChatMemberStatus.LEFT,
+                ChatMemberStatus.BANNED,
+            ] and new_status in [ChatMemberStatus.MEMBER, ChatMemberStatus.RESTRICTED]:
                 self.new_members[user_id] = True  # Mark user as new
-                logger.info(f"New member joined: {member.full_name} (ID: {user_id})")
-                # Schedule removal after cleanup_interval
-                context.application.create_task(
-                    self.remove_user_after_delay(user_id)
+                logger.info(
+                    f"New member joined: {update.chat_member.new_chat_member.user.full_name} (ID: {user_id})"
                 )
+                # Schedule removal after cleanup_interval
+                context.application.create_task(self.remove_user_after_delay(user_id))
         except Exception as e:
             logger.error(f"Error in track_new_members: {e}")
 
@@ -183,7 +214,9 @@ class TelegramSpamBot:
         except Exception as e:
             logger.error(f"Error in remove_user_from_new_members: {e}")
 
-    async def check_first_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def check_first_message(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """
         Check the first message sent by new members for spam.
         """
@@ -197,8 +230,7 @@ class TelegramSpamBot:
                 if is_spam:
                     # Delete the message and ban the user
                     await context.bot.delete_message(
-                        chat_id=chat_id,
-                        message_id=update.message.message_id
+                        chat_id=chat_id, message_id=update.message.message_id
                     )
                     await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
                     logger.warning(f"Banned user {user_id} for spam.")
@@ -213,13 +245,15 @@ class TelegramSpamBot:
         # Additional methods can be added here for extended functionality
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Retrieve the bot token from the environment variable
-    BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
-    MODEL_NAME = 'NeuroSpaceX/ruSpamNS_v1'
+    BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+    MODEL_NAME = "NeuroSpaceX/ruSpamNS_v1"
 
     if not BOT_TOKEN:
-        logger.critical("Bot token not found. Please set the TELEGRAM_BOT_TOKEN environment variable.")
+        logger.critical(
+            "Bot token not found. Please set the TELEGRAM_BOT_TOKEN environment variable."
+        )
         exit(1)
 
     try:
