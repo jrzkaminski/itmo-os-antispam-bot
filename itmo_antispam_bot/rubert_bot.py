@@ -172,9 +172,7 @@ class TelegramSpamBot:
         logger.info("Starting the bot...")
         self.application.run_polling()
 
-    async def track_new_members(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ):
+    async def track_new_members(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Track new members who join the chat via chat_member updates.
         """
@@ -184,16 +182,16 @@ class TelegramSpamBot:
             old_status = update.chat_member.old_chat_member.status
             new_status = update.chat_member.new_chat_member.status
 
-            if old_status in [
-                ChatMemberStatus.LEFT,
-                ChatMemberStatus.BANNED,
-            ] and new_status in [ChatMemberStatus.MEMBER, ChatMemberStatus.RESTRICTED]:
+            logger.info(
+                f"Chat Member Update Received: User ID {user_id}, Old Status {old_status}, New Status {new_status}")
+
+            if new_status in [ChatMemberStatus.MEMBER, ChatMemberStatus.RESTRICTED]:
                 self.new_members[user_id] = True  # Mark user as new
-                logger.info(
-                    f"New member joined: {update.chat_member.new_chat_member.user.full_name} (ID: {user_id})"
-                )
+                logger.info(f"New member joined: {update.chat_member.new_chat_member.user.full_name} (ID: {user_id})")
                 # Schedule removal after cleanup_interval
-                context.application.create_task(self.remove_user_after_delay(user_id))
+                context.application.create_task(
+                    self.remove_user_after_delay(user_id)
+                )
         except Exception as e:
             logger.error(f"Error in track_new_members: {e}")
 
