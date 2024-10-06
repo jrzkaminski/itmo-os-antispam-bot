@@ -152,16 +152,17 @@ class TelegramSpamBot:
         self._setup_handlers()
 
     def _setup_handlers(self):
-        """
-        Set up the message handlers for the bot.
-        """
+        new_member_handler = MessageHandler(
+            filters.StatusUpdate.NEW_CHAT_MEMBERS, self.track_new_members
+        )
         chat_member_handler = ChatMemberHandler(
-            self.track_new_members, ChatMemberHandler.ANY_CHAT_MEMBER
+            self.track_chat_member_updates, chat_member_types=ChatMemberHandler.CHAT_MEMBER
         )
         first_message_handler = MessageHandler(
             filters.TEXT & filters.ChatType.SUPERGROUP, self.check_first_message
         )
 
+        self.application.add_handler(new_member_handler)
         self.application.add_handler(chat_member_handler)
         self.application.add_handler(first_message_handler)
 
@@ -173,27 +174,30 @@ class TelegramSpamBot:
         self.application.run_polling()
 
     async def track_new_members(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        Track new members who join the chat via chat_member updates.
-        """
         try:
-            chat_id = update.effective_chat.id
-            user_id = update.chat_member.new_chat_member.user.id
-            old_status = update.chat_member.old_chat_member.status
-            new_status = update.chat_member.new_chat_member.status
-
-            logger.info(
-                f"Chat Member Update Received: User ID {user_id}, Old Status {old_status}, New Status {new_status}")
-
-            if new_status in [ChatMemberStatus.MEMBER, ChatMemberStatus.RESTRICTED]:
-                self.new_members[user_id] = True  # Mark user as new
-                logger.info(f"New member joined: {update.chat_member.new_chat_member.user.full_name} (ID: {user_id})")
-                # Schedule removal after cleanup_interval
+            for member in update.message.new_chat_members:
+                user_id = member.id
+                self.new_members[user_id] = True
+                logger.info(f"New member joined: {member.full_name} (ID: {user_id}) via message update.")
                 context.application.create_task(
                     self.remove_user_after_delay(user_id)
                 )
         except Exception as e:
             logger.error(f"Error in track_new_members: {e}")
+
+    async def track_chat_member_updates(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            status = update.chat_member.new_chat_member.status
+            if status == ChatMemberStatus.MEMBER:
+                user = update.chat_member.new_chat_member.user
+                user_id = user.id
+                self.new_members[user_id] = True
+                logger.info(f"New member joined: {user.full_name} (ID: {user_id}) via chat_member update.")
+                context.application.create_task(
+                    self.remove_user_after_delay(user_id)
+                )
+        except Exception as e:
+            logger.error(f"Error in track_chat_member_updates: {e}")
 
     async def remove_user_after_delay(self, user_id: int):
         """
