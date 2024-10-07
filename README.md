@@ -11,7 +11,7 @@ A simple implementation of anti-spam bot for itmo opensource chat.
 
 ## Features
 
-Currently the bot can successfully ban spammers in telegram supergroups based on ruBERT classification. Only supports russian language. 
+Currently, the bot can successfully ban spammers in telegram supergroups based on ruBERT classification. Only supports russian language.
 
 ## Planned features
 - Expand the bot into other languages;
