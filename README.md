@@ -1,4 +1,12 @@
 # itmo-os-antispam-bot
+
+
+![Black](https://img.shields.io/badge/code%20style-black-000000.svg)
+
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+
 A simple implementation of anti-spam bot for itmo opensource chat.
 
 ## Features
