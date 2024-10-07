@@ -9,6 +9,7 @@ Currently the bot can successfully ban spammers in telegram supergroups based on
 - Expand the bot into other languages;
 - Appeal option for blocked users;
 - Add option to ban spammers in channels comment section and groups with topics;
+- Add docker compose file to run the bot in a container;
 - Add a homoglyph tool and language detection instead of explicitly handling homoglyphs.
 
 # Acknowledgements
