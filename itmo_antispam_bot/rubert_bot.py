@@ -152,9 +152,6 @@ class TelegramSpamBot:
         self._setup_handlers()
 
     def _setup_handlers(self):
-        new_member_handler = MessageHandler(
-            filters.StatusUpdate.NEW_CHAT_MEMBERS, self.track_new_members
-        )
         chat_member_handler = ChatMemberHandler(
             self.track_chat_member_updates, chat_member_types=ChatMemberHandler.CHAT_MEMBER
         )
@@ -162,7 +159,6 @@ class TelegramSpamBot:
             filters.TEXT & filters.ChatType.SUPERGROUP, self.check_first_message
         )
 
-        self.application.add_handler(new_member_handler)
         self.application.add_handler(chat_member_handler)
         self.application.add_handler(first_message_handler)
 
@@ -173,17 +169,6 @@ class TelegramSpamBot:
         logger.info("Starting the bot...")
         self.application.run_polling(allowed_updates=["message", "chat_member"])
 
-    async def track_new_members(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            for member in update.message.new_chat_members:
-                user_id = member.id
-                self.new_members[user_id] = True
-                logger.info(f"New member joined: {member.full_name} (ID: {user_id}) via message update.")
-                context.application.create_task(
-                    self.remove_user_after_delay(user_id)
-                )
-        except Exception as e:
-            logger.error(f"Error in track_new_members: {e}")
 
     async def track_chat_member_updates(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
