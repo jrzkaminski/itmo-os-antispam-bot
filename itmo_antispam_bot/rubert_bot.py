@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 import re
-import time
 
 import torch
 from dotenv import load_dotenv
@@ -148,8 +147,8 @@ class TelegramSpamBot:
         self.application = ApplicationBuilder().token(token).build()
         self.spam_detector = SpamDetector(model_name)
         self.new_members = {}
-        self.cleanup_interval = 15552000  # Time in seconds to track new users
-        self.known_users = set()
+        self.cleanup_interval = 604800  # Time in seconds to track new users
+
         self._setup_handlers()
 
     def _setup_handlers(self):
@@ -172,7 +171,7 @@ class TelegramSpamBot:
         Start the bot.
         """
         logger.info("Starting the bot...")
-        self.application.run_polling()
+        self.application.run_polling(allowed_updates=["message", "chat_member"])
 
     async def track_new_members(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -187,27 +186,13 @@ class TelegramSpamBot:
             logger.error(f"Error in track_new_members: {e}")
 
     async def track_chat_member_updates(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """
-        Track changes in chat member status, specifically when new members join.
-        """
         try:
-            old_status = update.chat_member.old_chat_member.status
-            new_status = update.chat_member.new_chat_member.status
-            user = update.chat_member.new_chat_member.user
-            user_id = user.id
-
-            logger.debug(f"Chat member update for user {user_id}: {old_status} -> {new_status}")
-
-            # Check if the user has joined the chat
-            if new_status in [
-                ChatMemberStatus.MEMBER,
-                ChatMemberStatus.RESTRICTED,
-                ChatMemberStatus.ADMINISTRATOR,
-                ChatMemberStatus.OWNER,  # For completeness
-            ]:
-                self.new_members[user_id] = True  # Mark user as new
+            status = update.chat_member.new_chat_member.status
+            if status == ChatMemberStatus.MEMBER:
+                user = update.chat_member.new_chat_member.user
+                user_id = user.id
+                self.new_members[user_id] = True
                 logger.info(f"New member joined: {user.full_name} (ID: {user_id}) via chat_member update.")
-                # Schedule removal after cleanup_interval
                 context.application.create_task(
                     self.remove_user_after_delay(user_id)
                 )
@@ -231,7 +216,9 @@ class TelegramSpamBot:
         except Exception as e:
             logger.error(f"Error in remove_user_from_new_members: {e}")
 
-    async def check_first_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def check_first_message(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
         """
         Check the first message sent by new members for spam.
         """
@@ -240,34 +227,25 @@ class TelegramSpamBot:
             chat_id = update.message.chat_id
             message = update.message.text
 
-            # If user is not tracked but this is their first message, consider them new
-            if self.new_members.get(user_id) or user_id not in self.known_users:
+            if self.new_members.get(user_id):
                 is_spam = self.spam_detector.classify_message(message)
                 if is_spam:
                     # Delete the message and ban the user
                     await context.bot.delete_message(
-                        chat_id=chat_id,
-                        message_id=update.message.message_id
+                        chat_id=chat_id, message_id=update.message.message_id
                     )
                     await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
                     logger.warning(f"Banned user {user_id} for spam.")
                 else:
                     logger.info(f"User {user_id} passed spam check.")
 
-                # Add user to known users
-                self.known_users.add(user_id)
                 # Remove the user from tracking after their first message
                 await self.remove_user_from_new_members(user_id)
         except Exception as e:
             logger.error(f"Error in check_first_message: {e}")
 
-    async def cleanup_known_users(self):
-        while True:
-            current_time = time.time()
-            # Assuming you store user IDs with their last activity timestamp
-            self.known_users = {user_id: last_active for user_id, last_active in self.known_users.items()
-                                if current_time - last_active < self.cleanup_interval}
-            await asyncio.sleep(self.cleanup_interval)
+        # Additional methods can be added here for extended functionality
+
 
 if __name__ == "__main__":
     # Retrieve the bot token from the environment variable
