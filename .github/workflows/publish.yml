@@ -1,0 +1,24 @@
+name: publish
+on: [ push ]
+jobs:
+  publish-application-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build the itmo-os-antispam-bot Docker image
+        env:
+          HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+        run: |
+          docker build \
+           --build-arg HUGGINGFACE_TOKEN=$HUGGINGFACE_TOKEN \
+           --build-arg HF_HOME=/app/model-cache \
+           . --tag ghcr.io/zyryanov/hello-world:latest
+          
+          docker run ghcr.io/zyryanov/hello-world:latest
+          docker push ghcr.io/zyryanov/hello-world:latest
