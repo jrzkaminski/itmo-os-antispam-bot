@@ -147,7 +147,7 @@ class TelegramSpamBot:
         self.application = ApplicationBuilder().token(token).build()
         self.spam_detector = SpamDetector(model_name)
         self.new_members = {}
-        self.cleanup_interval = 604800  # Time in seconds to track new users
+        self.cleanup_interval = 2628002  # Time in seconds to track new users
 
         self._setup_handlers()
 
@@ -235,7 +235,7 @@ class TelegramSpamBot:
 if __name__ == "__main__":
     # Retrieve the bot token from the environment variable
     BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-    MODEL_NAME = "NeuroSpaceX/ruSpamNS_v1"
+    MODEL_NAME = "NeuroSpaceX/ruSpamNS_v6"
 
     if not BOT_TOKEN:
         logger.critical(
