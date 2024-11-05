@@ -41,61 +41,14 @@ class SpamDetector:
             .eval()
         )
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.homoglyphs = self._create_homoglyphs_mapping()
 
     @staticmethod
-    def _create_homoglyphs_mapping() -> dict:
-        """
-        Create a mapping of Latin letters to their visually similar Cyrillic equivalents.
-        """
-        return {
-            "A": "А",
-            "a": "а",
-            "B": "В",
-            "E": "Е",
-            "e": "е",
-            "K": "К",
-            "M": "М",
-            "H": "Н",
-            "O": "О",
-            "o": "о",
-            "P": "Р",
-            "C": "С",
-            "c": "с",
-            "T": "Т",
-            "X": "Х",
-            "y": "у",
-            "Y": "У",
-            "p": "р",
-            "b": "ь",
-            "I": "І",
-            "i": "і",
-            "S": "Ѕ",
-            "s": "ѕ",
-            "d": "ԁ",
-            "D": "Ԁ",
-            "f": "ғ",
-            "F": "Ғ",
-            "g": "ɡ",
-            "G": "Ԍ",
-            "l": "ⅼ",
-            "L": "Ꮮ",
-            "n": "ո",
-            "N": "Ν",
-        }
-
-    def clean_text(self, text: str) -> str:
+    def _clean_text(text: str) -> str:
         """
         Clean and normalize the input text for spam detection.
         """
         # Remove URLs
         text = re.sub(r"http\S+", "", text)
-        # Remove non-alphanumeric characters (excluding spaces)
-        text = re.sub(r"[^А-Яа-яA-Za-z0-9 ]+", " ", text)
-        # Replace Latin letters with Cyrillic equivalents
-        text = "".join([self.homoglyphs.get(char, char) for char in text])
-        # Convert to lowercase and strip whitespace
-        text = text.lower().strip()
         return text
 
     def classify_message(self, message: str) -> bool:
@@ -106,7 +59,7 @@ class SpamDetector:
             bool: True if the message is spam, False otherwise.
         """
         try:
-            message = self.clean_text(message)
+            message = self._clean_text(message)
             encoding = self.tokenizer(
                 message,
                 padding="max_length",
@@ -246,5 +199,5 @@ if __name__ == "__main__":
     try:
         bot = TelegramSpamBot(token=BOT_TOKEN, model_name=MODEL_NAME)
         bot.start()
-    except Exception as e:
-        logger.critical(f"Unhandled exception: {e}")
+    except Exception as error:
+        logger.critical(f"Unhandled exception: {error}")
