@@ -188,7 +188,7 @@ class TelegramSpamBot:
 if __name__ == "__main__":
     # Retrieve the bot token from the environment variable
     BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-    MODEL_NAME = "NeuroSpaceX/ruSpamNS_v6"
+    MODEL_NAME = "darkQibit/ruSpamNS_v31_big"
 
     if not BOT_TOKEN:
         logger.critical(
