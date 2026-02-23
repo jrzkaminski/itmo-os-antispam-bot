@@ -1,29 +1,98 @@
 # itmo-os-antispam-bot
 
+---
 
-![Black](https://img.shields.io/badge/code%20style-black-000000.svg)
+![License](https://img.shields.io/github/license/jrzkaminski/itmo-os-antispam-bot?style=flat&logo=opensourceinitiative&logoColor=white&color=blue)
+[![OSA-improved](https://img.shields.io/badge/improved%20by-OSA-yellow)](https://github.com/aimclub/OSA)
 
+---
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+## Overview
 
+itmo-os-antispam-bot is a tool designed to automatically protect Telegram supergroups from spam. It identifies and blocks spammers, particularly those posting in Russian, helping maintain a clean and safe communication environment for group members.
 
-A simple implementation of anti-spam bot for itmo opensource chat.
+---
 
-## Features
+## Table of Contents
 
-Currently, the bot can successfully ban spammers in telegram supergroups based on ruBERT classification. Only supports russian language.
+- [Core features](#core-features)
+- [Installation](#installation)
+- [Contributing](#contributing)
+- [License](#license)
+- [Citation](#citation)
 
-## Planned features
-- Expand the bot into other languages;
-- Appeal option for blocked users;
-- Add option to ban spammers in channels comment section and groups with topics;
-- Add docker compose file to run the bot in a container;
-- Add a homoglyph tool and language detection instead of explicitly handling homoglyphs.
+---
+## Core features
 
-## How to contribute
-Contributions are very welcome, send your PR and I'll review it as soon as I have time.
+1. **Spam Detection**: The bot utilizes a ruBERT model to classify incoming messages in Telegram supergroups as spam or not spam, enabling proactive moderation.
+2. **New Member Tracking**: The bot tracks newly joined members of the Telegram group and monitors their first message for potential spam content.
+3. **Automated Ban**: Upon detecting a spam message from a new member, the bot automatically deletes the message and bans the user from the group.
+4. **Logging and Error Handling**: The bot includes comprehensive logging for debugging and error handling mechanisms to ensure stability and provide insights into its operation.
 
-## Acknowledgements
-Thanks to the authors of [fine-tuned ruBERT](https://huggingface.co/NeuroSpaceX/ruSpamNS_V1) for spam-detection.
-Thanks to [@MaksimZyryanov](https://github.com/MaksimZyryanov) for QA of the bot to fix some bugs.
-Thanks to [Deev Roman](https://github.com/deevroman) for some hints regarding telegram API.
+---
+
+## Installation
+
+Install itmo-os-antispam-bot using one of the following methods:
+
+**Build from source:**
+
+1. Clone the itmo-os-antispam-bot repository:
+```sh
+git clone https://github.com/jrzkaminski/itmo-os-antispam-bot
+```
+
+2. Navigate to the project directory:
+```sh
+cd itmo-os-antispam-bot
+```
+
+3. Install the project dependencies:
+
+```sh
+pip install -r requirements.txt
+```
+
+---
+
+## Contributing
+
+- **[Report Issues](https://github.com/jrzkaminski/itmo-os-antispam-bot/issues)**: Submit bugs found or log feature requests for the project.
+
+---
+
+## License
+
+This project is protected under the MIT License. For more details, refer to the [LICENSE](https://github.com/jrzkaminski/itmo-os-antispam-bot/tree/main/LICENSE) file.
+
+---
+
+## Citation
+
+If you use this software, please cite it as below.
+
+### APA format:
+
+    jrzkaminski (2024). itmo-os-antispam-bot repository [Computer software]. https://github.com/jrzkaminski/itmo-os-antispam-bot
+
+### BibTeX format:
+
+    @misc{itmo-os-antispam-bot,
+
+        author = {jrzkaminski},
+
+        title = {itmo-os-antispam-bot repository},
+
+        year = {2024},
+
+        publisher = {github.com},
+
+        journal = {github.com repository},
+
+        howpublished = {\url{https://github.com/jrzkaminski/itmo-os-antispam-bot.git}},
+
+        url = {https://github.com/jrzkaminski/itmo-os-antispam-bot.git}
+
+    }
+
+---

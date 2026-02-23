@@ -105,8 +105,21 @@ class TelegramSpamBot:
         self._setup_handlers()
 
     def _setup_handlers(self):
+        """
+        Sets up the handlers for chat member updates and first messages.
+
+            This method creates instances of ChatMemberHandler and MessageHandler,
+            and then adds them to the application's handler list.
+
+            Parameters:
+                None
+
+            Returns:
+                None
+        """
         chat_member_handler = ChatMemberHandler(
-            self.track_chat_member_updates, chat_member_types=ChatMemberHandler.CHAT_MEMBER
+            self.track_chat_member_updates,
+            chat_member_types=ChatMemberHandler.CHAT_MEMBER,
         )
         first_message_handler = MessageHandler(
             filters.TEXT & filters.ChatType.SUPERGROUP, self.check_first_message
@@ -122,18 +135,34 @@ class TelegramSpamBot:
         logger.info("Starting the bot...")
         self.application.run_polling(allowed_updates=["message", "chat_member"])
 
+    async def track_chat_member_updates(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ):
+        """
+        Tracks new members joining the chat and schedules their removal after a delay.
 
-    async def track_chat_member_updates(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+            This method handles updates related to changes in chat member status.
+            Specifically, it identifies when a new member joins (status is MEMBER),
+            records their ID, logs the event, and schedules a task to remove them from
+            a tracking dictionary after a certain period.  Error handling is included for robustness.
+
+            Args:
+                update: The Telegram update object containing chat member information.
+                context: The application context.
+
+            Returns:
+                None
+        """
         try:
             status = update.chat_member.new_chat_member.status
             if status == ChatMemberStatus.MEMBER:
                 user = update.chat_member.new_chat_member.user
                 user_id = user.id
                 self.new_members[user_id] = True
-                logger.info(f"New member joined: {user.full_name} (ID: {user_id}) via chat_member update.")
-                context.application.create_task(
-                    self.remove_user_after_delay(user_id)
+                logger.info(
+                    f"New member joined: {user.full_name} (ID: {user_id}) via chat_member update."
                 )
+                context.application.create_task(self.remove_user_after_delay(user_id))
         except Exception as e:
             logger.error(f"Error in track_chat_member_updates: {e}")
 
